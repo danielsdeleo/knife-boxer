@@ -1,102 +1,13 @@
 require 'pp'
-# TODO: cookbook_version has extra unneeded deps, review this
-require 'chef/data_bag_item'
 
-
-
+require 'knife-boxer/hashified_cookbook'
+require 'knife-boxer/constraint_update'
+require 'knife-boxer/log_entry'
 
 module KnifeBoxer
 
   class Up < Chef::Knife
 
-    class ConstraintUpdate < Struct.new(:cb, :old_constraint, :new_constraint)
-
-      def name
-        cb.name.to_s
-      end
-
-      def old_version
-        if old_constraint.nil?
-          "Nothing"
-        else
-          old_constraint.sub(/^= /, '')
-        end
-      end
-
-      def new_version
-        new_constraint.sub(/^= /, '')
-      end
-
-      def description(name_justify=0)
-        "#{name.ljust(name_justify)} #{old_version} => #{new_version}"
-      end
-    end
-
-    class LogEntry
-
-      attr_accessor :user
-      attr_accessor :message
-      attr_accessor :constraint_updates
-      attr_accessor :environment
-
-      def initialize
-        @user = Chef::Config.node_name
-        @time = Time.new.utc
-        @environment = ""
-        @constraint_updates = []
-        @message = "(No message)"
-        yield self if block_given?
-      end
-
-      def entry_id
-        @time.strftime("%Y%m%d%H%M%S")
-      end
-
-      def timestamp
-        @time.strftime("%Y%m%d%H%M")
-      end
-
-      def updated_cookbooks
-        constraint_updates.inject({}) do |update_map, update|
-          update_map[update.name] = {
-            "old_version" => update.old_version,
-            "new_version" => update.new_version
-          }
-        end    
-      end
-
-      def to_data_item
-        item = Chef::DataBagItem.new
-        item.data_bag("cookbook-up-log")
-        item.raw_data = {"id" => entry_id,
-                         "timestamp" => timestamp,
-                         "user" => user,
-                         "environment" => environment,
-                         "message" => message,
-                         "updates" => updated_cookbooks
-        }
-        item
-      end
-
-      def write
-        api.post("data/cookbook-up-log", to_data_item)
-      rescue Net::HTTPServerException => e
-        if e.response.code.to_s == "404"
-          create_log_data_bag
-          retry
-        end
-      end
-
-      def create_log_data_bag
-        bag = Chef::DataBag.new.tap {|b| b.name("cookbook-up-log") }
-        api.post("data", bag)
-      end
-
-      def api
-        Chef::REST.new(Chef::Config[:chef_server_url])
-      end
-
-    end
 
     alias :api :rest
 
@@ -159,7 +70,7 @@ module KnifeBoxer
 
     def upload_cookbooks
       cookbooks_for_upload = env_updates.map do |u|
-        u.cb.cbv_for_upload
+        u.cb.for_upload
       end
 
       uploader = Chef::CookbookUploader.new(cookbooks_for_upload, nil)
@@ -184,7 +95,7 @@ module KnifeBoxer
 
         if old_constraint != new_constraint
           environment.cookbook_versions[cb.name.to_s] = new_constraint
-          @env_updates << ConstraintUpdate.new(cb, old_constraint, new_constraint)
+          @env_updates << ConstraintUpdate.new(cb.name, old_constraint, new_constraint)
         end
       end
     end
@@ -215,7 +126,7 @@ module KnifeBoxer
     end
 
     def hashify_cookbook(path)
-      HashifiedCookbook.new(path)
+      HashifiedCookbook.new(path, config)
     end
 
   end

@@ -102,6 +102,10 @@ module KnifeBoxer
       end
     end
 
+    def short_desc
+      "#{name} #{cookbook_version.version} (#{fingerprint}}"
+    end
+
     def long_desc
       <<-E
 Version: #{cookbook_version.version}
@@ -121,11 +125,13 @@ E
       new_metadata = Chef::Cookbook::Metadata.new.tap do |m|
         m.name(name)
         m.version(hashver)
+        m.description(short_desc)
         m.long_description(long_desc)
         m.dependencies.merge!(stripped_deps)
       end
 
       cbv.metadata = new_metadata
+      cbv.manifest[:metadata] = new_metadata
       cbv
     end
 

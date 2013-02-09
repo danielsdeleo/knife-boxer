@@ -68,5 +68,6 @@ E
     expect(hashified_cookbook.for_upload.manifest[:name]).to eql("a-#{hashified_cookbook.hashver}")
     expect(hashified_cookbook.for_upload.metadata.dependencies).to eql(hashified_cookbook.stripped_deps)
     expect(hashified_cookbook.for_upload.metadata.long_description).to eql(hashified_cookbook.long_desc)
+    expect(hashified_cookbook.for_upload.manifest[:metadata].long_description).to eql(hashified_cookbook.long_desc)
   end
 end
