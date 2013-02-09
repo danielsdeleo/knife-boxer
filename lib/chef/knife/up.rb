@@ -1,9 +1,7 @@
 require 'pp'
 # TODO: cookbook_version has extra unneeded deps, review this
-require 'chef/resource'
 require 'chef/data_bag_item'
 
-require 'chef/cookbook/cookbook_version_loader'
 
 
 
@@ -217,10 +215,7 @@ module KnifeBoxer
     end
 
     def hashify_cookbook(path)
-      path = File.expand_path(path)
-      cb_loader = Chef::Cookbook::CookbookVersionLoader.new(path)
-      cb_loader.load_cookbooks
-      HashifiedCookbook.new(cb_loader)
+      HashifiedCookbook.new(path)
     end
 
   end
