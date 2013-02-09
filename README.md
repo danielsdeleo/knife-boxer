@@ -3,17 +3,49 @@
 Knife Boxer provides a set of plugins for managing cookbooks in an
 immutable way and creating sandboxed environments for testing.
 
-## Checksum Based Version Numbers
+## Frictionless Environment Usage
 
-knife boxer uses checksums of cookbook content as the basis for a
-cookbook's version number. When uploading cookbooks, you **always**
-specify which environment you want to use; knife boxer automatically
-updates the version constraints in the environment to match the uploaded
-cookbooks. This means that you must go all-in: every node must use
-environments, and all of your cookbooks must be uploaded with knife
-boxer. Attempting to use the _default environment will result in a node
-erratically using different versions of cookbooks because the
-checksum-based version numbers don't sort correctly.
+Knife boxer makes environments frictionless. It does this by uploading
+cookbooks using version numbers based on checksums of a cookbook's
+files. When uploading, you always specify the environment you want the
+cookbooks to apply to:
+
+    knife up production cookbooks/redis
+
+This uploads the cookbook with a version number like
+"30718453.4494255.188737193" and pins the production environment to this
+version. You never need to worry about overwriting this cookbook with a
+development version, because the version number is computed from the
+cookbook content.
+
+This has a few implications:
+1. You have to use environments everywhere. The "_default" environment
+   is basically useless if you use this plugin.
+2. Your team has to go all-in. This only works if everyone uses it.
+3. Version information is stripped from cookbook dependencies, so the
+   Chef server can't solve constraints for you. You need to have an
+   interoperable set of cookbooks on disk to upload.
+
+In this scheme, version numbers have no relationship to the amount of
+change in a cookbook or when it was written. To make this easier to
+handle, each cookbook upload writes a log entry in a data bag. You can
+search this data bag by environment, cookbook, or username to see what's
+changed in your cookbooks and environments.
+
+Knife boxer also makes it easy to create disposable environments the
+same way you'd use git branches for development or exploration. When
+uploading you can choose to create a new environment or fork an existing
+one so that your changes are isolated from other environments. For
+example, to create a "my-hacks" environment which is copied from
+production with your own edits to the application cookbook:
+
+    knife up -f production my-hacks cookbooks/application
+
+## Commands
+
+* `knife up ENVIRONMENT COOKBOOK_PATHS`: Upload the cookbooks at the
+given paths, and update the environment's constraints to match. You can
+also fork a given environment or create a new one.
 
 ## Installation
 
@@ -25,12 +57,6 @@ script is provided to create a shim which will load knife-boxer:
 
 This creates a file `~/.chef/plugins/knife/knife-boxer-shim.rb`. If you
 want to uninstall knife-boxer then you need to delete that file.
-
-## Commands
-
-* `knife up ENVIRONMENT COOKBOOK_PATHS`: Upload the cookbooks at the
-given paths, and update the environment's constraints to match. You can
-also fork a given environment or create a new one.
 
 ## Project Goals
 
