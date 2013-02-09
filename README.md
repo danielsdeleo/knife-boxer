@@ -19,6 +19,7 @@ development version, because the version number is computed from the
 cookbook content.
 
 This has a few implications:
+
 1. You have to use environments everywhere. The "_default" environment
    is basically useless if you use this plugin.
 2. Your team has to go all-in. This only works if everyone uses it.
