@@ -73,6 +73,16 @@ as is possible without server modifications.
    cookbooks every time chef-client asks for cookbooks. This can be done
    in a different time/place, e.g., with librarian or berkshelf.
 
+## About the Name
+
+* I have a boxer dog. She's awesome.
+* The default environments workflow makes me want to punch someone in
+  the face.
+* Lightweight environment "forking" means everyone on the team can have
+  their own sandboxes to test changes with whatever degree of isolation
+  is appropriate.
+
+
 ## Errata
 
 There is no way for a knife plugin to atomically mange version
