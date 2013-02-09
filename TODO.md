@@ -1,5 +1,10 @@
 # TODOS:
 
+### GC
+This creates an unbounded number of cookbooks, and Chef Server will load
+some data about every cookbook when solving the dependency constraints.
+Periodic GC is necessary to mitigate the issue.
+
 ### env attributes abuse
 * stick the x.y.z version number in there
 * last modified timestamp
