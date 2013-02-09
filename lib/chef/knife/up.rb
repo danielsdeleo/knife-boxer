@@ -45,7 +45,11 @@ module KnifeBoxer
 
       environment = fetch_or_build_env(env_name)
       cookbook_paths = expand_and_filter_paths(input_paths)
-      hashified_cookbooks = cookbook_paths.map {|path| hashify_cookbook(path) }
+      hashified_cookbooks = cookbook_paths.inject({}) do |by_name, path|
+        wrapper = hashify_cookbook(path)
+        by_name[wrapper.name] = wrapper
+        by_name
+      end
 
       update_env(environment, hashified_cookbooks)
       if no_updates?
@@ -53,7 +57,7 @@ module KnifeBoxer
         exit 0
       end
       show_updates
-      upload_cookbooks
+      upload_cookbooks(hashified_cookbooks)
 
       write_log_entry(env_name)
 
@@ -61,16 +65,16 @@ module KnifeBoxer
     end
 
     def write_log_entry(env_name)
-      entry = LogEntry.new do |e|
+      entry = LogEntry.new(Chef::Config) do |e|
         e.environment = env_name
         e.constraint_updates = env_updates
       end
       entry.write
     end
 
-    def upload_cookbooks
+    def upload_cookbooks(hashified_cookbooks)
       cookbooks_for_upload = env_updates.map do |u|
-        u.cb.for_upload
+        hashified_cookbooks[u.name].for_upload
       end
 
       uploader = Chef::CookbookUploader.new(cookbooks_for_upload, nil)
@@ -89,7 +93,7 @@ module KnifeBoxer
     end
 
     def update_env(environment, hashified_cookbooks)
-      hashified_cookbooks.each do |cb|
+      hashified_cookbooks.each_value do |cb|
         old_constraint = environment.cookbook_versions[cb.name.to_s]
         new_constraint = "= #{cb.hashver}"
 
@@ -126,7 +130,7 @@ module KnifeBoxer
     end
 
     def hashify_cookbook(path)
-      HashifiedCookbook.new(path, config)
+      HashifiedCookbook.new(path, Chef::Config)
     end
 
   end
