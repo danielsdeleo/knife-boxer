@@ -1,4 +1,5 @@
 require 'chef/search/query'
+require 'knife-boxer/constraint_update'
 
 module KnifeBoxer
   class Log < Chef::Knife
@@ -18,8 +19,12 @@ Environment: #{entry["environment"]}
   Date: #{Time.at(entry["timestamp"])}
 
 E
-      entry["updates"].each do |cookbook, change|
-        message << "  #{cookbook} #{change["old_version"]} => #{change["new_version"]}\n"
+      updates = entry["updates"].map do |name, change|
+        ConstraintUpdate.new(name, change["old_version"], change["new_version"])
+      end
+      justify_width = updates.map {|u| u.name.size }.max
+      updates.each do |update|
+        message << "  #{update.description(justify_width)}\n"
       end
       message << "\n"
       ui.info message
