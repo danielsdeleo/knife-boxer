@@ -4,6 +4,8 @@ require 'knife-boxer/constraint_update'
 module KnifeBoxer
   class Log < Chef::Knife
 
+    banner "knife log"
+
     alias :api :rest
 
     def run
@@ -35,7 +37,8 @@ module KnifeBoxer
 
     def format_entry(entry)
       message=<<-E
-Environment: #{entry["environment"]}
+ID: #{entry["id"]}
+  Environment: #{entry["environment"]}
   Updated by: #{entry["user"]}
   Date: #{Time.at(entry["timestamp"])}
 
