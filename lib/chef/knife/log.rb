@@ -11,6 +11,14 @@ module KnifeBoxer
     def run
       all_entries = Chef::Search::Query.new.search("cookbook-up-log")[0]
       log_entries = all_entries.sort_by {|e| e["id"] }.reverse
+      if ui.stdout.tty?
+        write_to_pager(log_entries)
+      else
+        log_entries.each { |e| display_entry(ui.stdout, e) }
+      end
+    end
+
+    def write_to_pager(log_entries)
       pager_pid, write = setup_pager
       log_entries.each {|e| display_entry(write, e) }
       write.close
