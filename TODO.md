@@ -16,6 +16,8 @@ Given an update ID, revert to old versions.
 ### data bag item based history system
 This exists, it just needs git integration.
 
+* Show log message in `knife log`
+
 * git rev
 * git status
 * git ls-remote rev?

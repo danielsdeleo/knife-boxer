@@ -14,8 +14,14 @@ module KnifeBoxer
       if ui.stdout.tty?
         write_to_pager(log_entries)
       else
-        log_entries.each { |e| display_entry(ui.stdout, e) }
+        write_to_stdout(log_entries)
       end
+    end
+
+    def write_to_stdout(log_entries)
+      log_entries.each { |e| display_entry(ui.stdout, e) }
+    rescue Errno::EPIPE
+      exit 0
     end
 
     def write_to_pager(log_entries)

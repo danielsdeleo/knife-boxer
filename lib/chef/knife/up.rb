@@ -59,7 +59,8 @@ module KnifeBoxer
       show_updates
       upload_cookbooks(hashified_cookbooks)
 
-      write_log_entry(env_name)
+      log_entry = write_log_entry(env_name)
+      ui.msg "update id: #{log_entry.entry_id}"
 
       save_env(environment)
     end
@@ -70,6 +71,7 @@ module KnifeBoxer
         e.constraint_updates = env_updates
       end
       entry.write
+      entry
     end
 
     def upload_cookbooks(hashified_cookbooks)
