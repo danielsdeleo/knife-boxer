@@ -54,6 +54,25 @@ data bag items and fetched by search, so there is a delay between
 writing them and when they are available. This is very prototype-y.
 Filtering features are planned but not implemented.
 
+        ID: 20130210191429
+          Environment: default
+          Updated by: kallistec
+          Date: 2013-02-10 11:14:29 -0800
+        
+          apt 75049083.142609138.113682976 => 58339039.237290627.212044539
+        
+        ID: 20130209233558
+          Environment: default
+          Updated by: kallistec
+          Date: 2013-02-09 15:35:58 -0800
+        
+          drupal          Nothing => 44704955.71835109.263707545
+          test1           Nothing => 123698944.774444.218245914
+          graphite        Nothing => 228126459.170171648.14274816
+          no-such-package Nothing => 22792969.162955587.34072117
+          xml             Nothing => 157000105.142327922.10318776
+
+
 * `knife revert UPDATE_ID`: Revert a change to an environment. The
 update id is printed when updating or can be found with `knife log`.
 
