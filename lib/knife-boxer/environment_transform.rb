@@ -37,6 +37,38 @@ module KnifeBoxer
       end
     end
 
+    # Takes a Hash of the form:
+    #   cookbook_name<String> => { "old_version" => old_version<String>, "new_version" => new_version<String> }
+    # Applies a revert to the environment by setting constraints to the old
+    # versions. It's the caller's responsibility to check for conflicts first.
+    def revert(updates_by_cookbook)
+      updates_by_cookbook.each do |cookbook_name, update_info|
+        old_constraint = constraints[cookbook_name]
+        new_constraint = "= #{update_info["old_version"]}"
+
+        if old_constraint != new_constraint
+          constraints[cookbook_name] = new_constraint
+          updates << ConstraintUpdate.new(cookbook_name, old_constraint, new_constraint)
+        end
+      end
+    end
+
+    # true if there are updates for the environment, false otherwise.
+    def updates_required?
+      !updates.empty?
+    end
+
+    def update_count
+      updates.size
+    end
+
+    def description
+      justify_width = updates.map {|u| u.name.size }.max
+      updates.inject("") do |desc, update|
+        desc << update.description(justify_width) << "\n"
+      end
+    end
+
     # Delegate method for the environment's cookbook versions.
     def constraints
       environment.cookbook_versions

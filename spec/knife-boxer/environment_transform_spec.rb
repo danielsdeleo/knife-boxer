@@ -30,6 +30,10 @@ describe KnifeBoxer::EnvironmentTransform do
       expect(environment_transform.cookbooks_to_upload).to eql([])
     end
 
+    it "has no updates" do
+      expect(environment_transform.updates_required?).to be_false
+    end
+
   end
 
   context "after updates from a set of cookbooks have been applied" do
@@ -66,6 +70,10 @@ describe KnifeBoxer::EnvironmentTransform do
       expect(environment_transform.cookbooks_to_upload).to eql(cookbooks_to_update)
     end
 
+    it "has updates for the environment" do
+      expect(environment_transform.updates_required?).to be_true
+    end
+
     context "and some cookbooks are already up-to-date" do
 
       let(:environment) do
@@ -88,26 +96,55 @@ describe KnifeBoxer::EnvironmentTransform do
         expect(environment_transform.cookbooks_to_upload).to eql([cookbook_on_disk_2])
       end
 
+      it "has updates for the environment" do
+        expect(environment_transform.updates_required?).to be_true
+      end
     end
 
   end
 
-  context "after loading an existing transform" do
+  context "when reverting an existing transform" do
+
+    let(:environment) do
+      Chef::Environment.new.tap do |e|
+        e.name "test"
+        e.cookbook("one", "= 111.111.111")
+        e.cookbook("two", "= 222.222.222")
+      end
+    end
 
     let(:existing_transform_data) do
-      # Hash of "cookbook_name" => {"old_version" => "xyz", "new_version" => "xyz prime" }
+      { "one" => { "old_version" => "123.123.123", "new_version" => "111.111.111" },
+        "two" => { "old_version" => "234.234.234", "new_version" => "222.222.222" }
+      }
     end
 
-    it "can reverse itself" do
-      pending
-      # expect reversed transform to have old and new versions switched.
+    before do
+      environment_transform.revert(existing_transform_data)
     end
+
+    it "has updates describing the revert" do
+      expect(environment_transform.updates).to have(2).items
+      cb_one_update = environment_transform.updates[0]
+      expect(cb_one_update.name).to eql("one")
+      expect(cb_one_update.old_version).to eql("111.111.111")
+      expect(cb_one_update.new_version).to eql("123.123.123")
+    end
+
+    it "has updates for the environment" do
+      expect(environment_transform.updates_required?).to be_true
+    end
+
   end
 
   # TODO: categorize these
   context "misc behaviors" do
 
     it "generates a text description" do
+      pending
+    end
+
+    it "generates a log entry" do
       pending
     end
 
