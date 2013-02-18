@@ -1,18 +1,16 @@
-require 'pp'
-
-require 'knife-boxer/hashified_cookbook'
-require 'knife-boxer/constraint_update'
-require 'knife-boxer/log_entry'
 
 module KnifeBoxer
 
   class Up < Chef::Knife
 
-
     alias :api :rest
 
     deps do
       require 'chef/cookbook_uploader'
+      require 'knife-boxer/hashified_cookbook'
+      require 'knife-boxer/constraint_update'
+      require 'knife-boxer/log_entry'
+      require 'knife-boxer/environment_transform'
     end
 
     banner "knife up ENVIRONMENT COOKBOOK_PATH [COOKBOOK_PATH ...]"
@@ -29,7 +27,11 @@ module KnifeBoxer
       long: "--fork-env BASE_ENVIRONMENT",
       description: "fork the environment BASE_ENVIRONMENT, then upload to it"
 
-    attr_reader :env_updates
+    # paths to cookbooks to upload
+    attr_reader :cookbook_paths
+
+    # Chef::Environment to be updated
+    attr_reader :environment
 
     def run
       if name_args.empty? or name_args.size < 2
@@ -37,46 +39,72 @@ module KnifeBoxer
         exit 1
       end
 
-      @env_updates = []
+      process_args
 
+      unless transform.updates_required?
+        ui.msg "All cookbooks up to date in #{env_name}"
+        exit 0
+      end
+
+
+      ui.msg("Uploading #{transform.update_count} cookbook(s)")
+      upload_cookbooks
+
+      log_entry = write_log_entry
+      ui.msg "update id: #{log_entry.entry_id}"
+      ui.msg(transform.description)
+
+      save_environment
+    end
+
+    def process_args
       env_and_paths = name_args.dup
       env_name = env_and_paths.shift
       input_paths = env_and_paths
 
-      environment = fetch_or_build_env(env_name)
-      cookbook_paths = expand_and_filter_paths(input_paths)
-      hashified_cookbooks = cookbook_paths.inject({}) do |by_name, path|
-        wrapper = hashify_cookbook(path)
-        by_name[wrapper.name] = wrapper
-        by_name
-      end
-
-      update_env(environment, hashified_cookbooks)
-      if no_updates?
-        ui.msg "All cookbooks up to date in #{env_name}"
-        exit 0
-      end
-      show_updates
-      upload_cookbooks(hashified_cookbooks)
-
-      log_entry = write_log_entry(env_name)
-      ui.msg "update id: #{log_entry.entry_id}"
-
-      save_env(environment)
+      @environment = fetch_or_build_env(env_name)
+      @cookbook_paths = expand_and_filter_paths(input_paths)
     end
 
-    def write_log_entry(env_name)
+    def environment_name
+      environment.name
+    end
+
+    def updates
+      transform.updates
+    end
+
+    def wrapped_cookbooks
+      @wrapped_cookbooks ||= begin
+        cookbook_paths.inject({}) do |by_name, path|
+          wrapper = hashify_cookbook(path)
+          by_name[wrapper.name] = wrapper
+          by_name
+        end
+      end
+    end
+
+    def transform
+      @transform ||= begin
+        t = EnvironmentTransform.new(environment)
+        t.use_cookbooks(wrapped_cookbooks.values)
+        t
+      end
+    end
+
+
+    def write_log_entry
       entry = LogEntry.new(Chef::Config) do |e|
-        e.environment = env_name
-        e.constraint_updates = env_updates
+        e.environment = environment_name
+        e.constraint_updates = updates
       end
       entry.write
       entry
     end
 
-    def upload_cookbooks(hashified_cookbooks)
-      cookbooks_for_upload = env_updates.map do |u|
-        hashified_cookbooks[u.name].for_upload
+    def upload_cookbooks
+      cookbooks_for_upload = updates.map do |u|
+        wrapped_cookbooks[u.name].for_upload
       end
 
       uploader = Chef::CookbookUploader.new(cookbooks_for_upload, nil)
@@ -94,18 +122,6 @@ module KnifeBoxer
       end
     end
 
-    def update_env(environment, hashified_cookbooks)
-      hashified_cookbooks.each_value do |cb|
-        old_constraint = environment.cookbook_versions[cb.name.to_s]
-        new_constraint = "= #{cb.hashver}"
-
-        if old_constraint != new_constraint
-          environment.cookbook_versions[cb.name.to_s] = new_constraint
-          @env_updates << ConstraintUpdate.new(cb.name, old_constraint, new_constraint)
-        end
-      end
-    end
-
     def fetch_or_build_env(name)
       # TODO: assert env doesn't exist for create/fork
       # TODO: rescue 404 and suggest -C option for update case
@@ -118,11 +134,11 @@ module KnifeBoxer
       end
     end
 
-    def save_env(env)
+    def save_environment
       if config[:create_env] or config[:fork_env]
-        api.post("environments", env)
+        api.post("environments", environment)
       else
-        api.put("environments/#{env.name}", env)
+        api.put("environments/#{env.name}", environment)
       end
     end
 
