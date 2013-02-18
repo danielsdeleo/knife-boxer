@@ -15,6 +15,14 @@ module KnifeBoxer
       entry_to_revert = load_entry(id_to_revert)
       env_to_revert = api.get("environments/#{entry_to_revert["environment"]}")
 
+      verify_no_conflicts!(env_name, entry_to_revert["updates"])
+
+      transform = EnvironmentTransform.new(env_name, target_versions_by_cookbook)
+      transform.apply
+      ui.msg "Reverted '#{log_entry.id}'"
+      ui.msg "Update id: #{transform.entry_id}"
+
+
       reverts = calculate_updates_for(env_to_revert, entry_to_revert)
 
       #pp reverts
@@ -23,6 +31,15 @@ module KnifeBoxer
       env_to_revert.save
       ui.msg "Reverted '#{id_to_revert}'"
       ui.msg "Update id: #{entry.entry_id}"
+    end
+
+    def verify_no_conflicts!(environment, changes_to_revert)
+      checker = ConflictCheck.new(environment, changes_to_revert)
+      unless checker.conflicts.empty?
+        ui.error "Failed to revert because of conflicts"
+        checker.conflicts.each {|c| ui.msg c }
+        exit 1
+      end
     end
 
     def log_reverts(reverted_id, env, reverts)
@@ -42,28 +59,9 @@ module KnifeBoxer
     end
 
     def calculate_updates_for(environment, entry_to_revert)
-      reverts, conflicts = [], []
+      reverts = []
       entry_to_revert["updates"].each do |cookbook_name, update_info|
-
-        expected_version = update_info["new_version"]
-        actual_version = environment.cookbook_versions[cookbook_name].sub(/^= /, '')
-
-        # conflict checks; if versions have since been updated, or
-        # old_version is "Nothing" we bail.
-        if actual_version != expected_version
-          conflicts << "Cookbook '#{cookbook_name}' conflicts: trying to revert from version '#{expected_version}' but is '#{actual_version}'"
-          next
-        elsif update_info["old_version"] == "Nothing"
-          conflicts << "Cookbook '#{cookbook_name}' conflicts: there is no previous version to revert to"
-          next
-        end
-
         reverts << ConstraintUpdate.new(cookbook_name, "= #{update_info["new_version"]}" , "= #{update_info["old_version"]}")
-      end
-      unless conflicts.empty?
-        ui.error "Failed to revert because of conflicts"
-        conflicts.each {|c| ui.msg c }
-        exit 1
       end
       reverts
     end
