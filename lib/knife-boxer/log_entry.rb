@@ -39,7 +39,7 @@ module KnifeBoxer
           "new_version" => update.new_version
         }
         update_map
-      end    
+      end
     end
 
     def to_data_item
