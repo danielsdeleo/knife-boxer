@@ -1,5 +1,7 @@
 require 'chef/environment'
 require 'knife-boxer/constraint_update'
+require 'knife-boxer/log_entry'
+require 'knife-boxer/environment_transform'
 
 module KnifeBoxer
   class EnvironmentTransform
@@ -93,3 +95,4 @@ module KnifeBoxer
 
   end
 end
+

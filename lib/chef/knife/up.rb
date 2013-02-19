@@ -34,11 +34,6 @@ module KnifeBoxer
     attr_reader :environment
 
     def run
-      if name_args.empty? or name_args.size < 2
-        show_usage
-        exit 1
-      end
-
       process_args
 
       unless transform.updates_required?
@@ -58,6 +53,11 @@ module KnifeBoxer
     end
 
     def process_args
+      if name_args.empty? or name_args.size < 2
+        show_usage
+        exit 1
+      end
+
       env_and_paths = name_args.dup
       env_name = env_and_paths.shift
       input_paths = env_and_paths
@@ -136,9 +136,9 @@ module KnifeBoxer
 
     def save_environment
       if config[:create_env] or config[:fork_env]
-        api.post("environments", environment)
+        api.post("environments", transform.environment)
       else
-        api.put("environments/#{env.name}", environment)
+        api.put("environments/#{environment_name}", transform.environment)
       end
     end
 

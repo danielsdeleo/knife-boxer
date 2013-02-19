@@ -1,36 +1,47 @@
 module KnifeBoxer
   class Revert < Chef::Knife
 
+    deps do
+      require 'knife-boxer/environment_transform'
+      require 'knife-boxer/conflict_check'
+      require 'knife-boxer/log_entry'
+    end
+
     banner "knife revert UPDATE_ID"
 
     alias :api :rest
 
+    # Chef::Environment to be updated
+    attr_reader :environment
+
+    attr_reader :log_entry
+
+    attr_reader :changes_to_revert
+
     def run
+      process_args
+
+      verify_no_conflicts!(environment, changes_to_revert)
+
+      transform = EnvironmentTransform.new(environment)
+      transform.revert(changes_to_revert)
+      transform.environment.save
+      revert_entry = log_reverts(log_entry["id"], environment, transform.updates)
+      ui.msg "Reverted '#{log_entry["id"]}'"
+      ui.msg "Update id: #{revert_entry.entry_id}"
+      ui.msg(transform.description)
+    end
+
+    def process_args
       unless id_to_revert = name_args.first
         ui.error "Specify an update ID to revert"
         show_usage
         exit 1
       end
 
-      entry_to_revert = load_entry(id_to_revert)
-      env_to_revert = api.get("environments/#{entry_to_revert["environment"]}")
-
-      verify_no_conflicts!(env_name, entry_to_revert["updates"])
-
-      transform = EnvironmentTransform.new(env_name, target_versions_by_cookbook)
-      transform.apply
-      ui.msg "Reverted '#{log_entry.id}'"
-      ui.msg "Update id: #{transform.entry_id}"
-
-
-      reverts = calculate_updates_for(env_to_revert, entry_to_revert)
-
-      #pp reverts
-      update_env(env_to_revert, reverts)
-      entry = log_reverts(id_to_revert, env_to_revert, reverts)
-      env_to_revert.save
-      ui.msg "Reverted '#{id_to_revert}'"
-      ui.msg "Update id: #{entry.entry_id}"
+      @log_entry = load_entry(id_to_revert)
+      @changes_to_revert = log_entry["updates"]
+      @environment = api.get("environments/#{log_entry["environment"]}")
     end
 
     def verify_no_conflicts!(environment, changes_to_revert)
@@ -52,20 +63,6 @@ module KnifeBoxer
       entry
     end
 
-    def update_env(environment, reverts)
-      reverts.each do |revert|
-        environment.cookbook_versions[revert.name] = revert.new_constraint
-      end
-    end
-
-    def calculate_updates_for(environment, entry_to_revert)
-      reverts = []
-      entry_to_revert["updates"].each do |cookbook_name, update_info|
-        reverts << ConstraintUpdate.new(cookbook_name, "= #{update_info["new_version"]}" , "= #{update_info["old_version"]}")
-      end
-      reverts
-    end
-
     def load_entry(entry_id)
       api.get("data/cookbook-up-log/#{entry_id}")
       # TODO: rescue not found, error out.
@@ -78,3 +75,4 @@ module KnifeBoxer
 
   end
 end
+
